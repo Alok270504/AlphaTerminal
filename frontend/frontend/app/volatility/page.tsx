@@ -1,0 +1,198 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { MainLayout } from "@/components/layout/MainLayout";
+import { API_BASE, apiGet, buildUrl } from "@/lib/api";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+
+export default function VolatilityPage() {
+  const [endpoint, setEndpoint] = useState("/api/volatility/forecast"); // edit if your backend differs
+  const [ticker, setTicker] = useState("SPY");
+  const [model, setModel] = useState("garch");
+  const [period, setPeriod] = useState("2y");
+
+  const [loading, setLoading] = useState(false);
+  const [resp, setResp] = useState<any>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  const url = useMemo(() => buildUrl(endpoint, { ticker, model, period }), [endpoint, ticker, model, period]);
+
+  const series = useMemo(() => {
+    if (!resp) return null;
+
+    const pts = resp?.points || resp?.data || resp?.series;
+    if (Array.isArray(pts)) {
+      const out = pts
+        .map((p: any) => ({
+          date: String(p.date ?? p.time ?? p.t ?? ""),
+          vol: p.vol ?? p.volatility ?? p.sigma ?? p.value,
+        }))
+        .filter((x: any) => x.date);
+      return out.length ? out : null;
+    }
+
+    if (Array.isArray(resp?.dates) && (Array.isArray(resp?.vol) || Array.isArray(resp?.volatility))) {
+      const vols = resp.vol ?? resp.volatility;
+      const out = resp.dates.map((d: any, i: number) => ({ date: String(d), vol: vols[i] }));
+      return out.length ? out : null;
+    }
+
+    if (resp?.vol_by_date && typeof resp.vol_by_date === "object") {
+      const keys = Object.keys(resp.vol_by_date).sort();
+      const out = keys.map((k) => ({ date: k, vol: resp.vol_by_date[k] }));
+      return out.length ? out : null;
+    }
+
+    return null;
+  }, [resp]);
+
+  const forecast =
+    resp?.forecast ??
+    resp?.next_vol ??
+    resp?.predicted_vol ??
+    resp?.vol_forecast ??
+    null;
+
+  const run = async () => {
+    setLoading(true);
+    setErr(null);
+    setResp(null);
+    try {
+      const json = await apiGet(endpoint, { ticker, model, period });
+      setResp(json);
+    } catch (e: any) {
+      setErr(e?.message ?? "Backend error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <MainLayout>
+      <div className="space-y-6">
+        <div className="opacity-0 animate-fade-in">
+          <h1 className="text-3xl font-bold">Volatility Prediction</h1>
+          <p className="text-sm text-muted-foreground">
+            Backend: <span className="font-mono text-foreground/90">{API_BASE}</span>
+          </p>
+        </div>
+
+        <div className="glass-card p-6 space-y-4">
+          <div className="grid gap-3 md:grid-cols-4">
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Ticker</div>
+              <input
+                value={ticker}
+                onChange={(e) => setTicker(e.target.value)}
+                className="h-10 w-full rounded-md border border-border bg-background/40 px-3 font-mono"
+              />
+            </div>
+
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Model</div>
+              <select
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+                className="h-10 w-full rounded-md border border-border bg-background/40 px-3"
+              >
+                <option value="garch">GARCH</option>
+                <option value="egarch">EGARCH</option>
+                <option value="ml">ML (if supported)</option>
+              </select>
+            </div>
+
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Data period</div>
+              <input
+                value={period}
+                onChange={(e) => setPeriod(e.target.value)}
+                className="h-10 w-full rounded-md border border-border bg-background/40 px-3 font-mono"
+              />
+            </div>
+
+            <div className="flex items-end">
+              <button
+                onClick={run}
+                className="h-10 w-full rounded-md bg-primary px-4 font-semibold text-primary-foreground"
+              >
+                {loading ? "Forecasting..." : "Forecast"}
+              </button>
+            </div>
+          </div>
+
+          <div className="pt-2 border-t border-border space-y-2">
+            <div className="text-xs text-muted-foreground">Endpoint (editable)</div>
+            <input
+              value={endpoint}
+              onChange={(e) => setEndpoint(e.target.value)}
+              className="h-10 w-full rounded-md border border-border bg-background/40 px-3 font-mono text-sm"
+            />
+            <div className="text-xs text-muted-foreground">Request URL</div>
+            <div className="rounded-md border border-border bg-background/30 px-3 py-2 font-mono text-xs break-all">
+              {url}
+            </div>
+          </div>
+        </div>
+
+        {err && (
+          <div className="glass-card p-6 border border-destructive/40 text-destructive">
+            {err}
+          </div>
+        )}
+
+        {resp && !err && (
+          <div className="grid gap-6 lg:grid-cols-3">
+            <div className="glass-card p-6 space-y-3">
+              <div className="text-sm font-semibold">Forecast</div>
+              <div className="text-3xl font-bold text-warning">{forecast ?? "—"}</div>
+
+              <details className="pt-2">
+                <summary className="cursor-pointer text-sm text-muted-foreground">Raw response</summary>
+                <pre className="mt-2 max-h-80 overflow-auto rounded-md border border-border bg-background/30 p-3 text-xs">
+                  {JSON.stringify(resp, null, 2)}
+                </pre>
+              </details>
+            </div>
+
+            <div className="glass-card p-4 lg:col-span-2 h-[520px]">
+              <div className="px-2 pt-2">
+                <div className="text-sm font-semibold">Volatility series</div>
+                <div className="text-xs text-muted-foreground">
+                  Charts automatically if backend returns points/dates.
+                </div>
+              </div>
+
+              <div className="mt-2 h-[460px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={series ?? []}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(222 30% 18%)" />
+                    <XAxis dataKey="date" hide />
+                    <YAxis stroke="hsl(215 20% 55%)" />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#0b1220",
+                        border: "1px solid #1f2937",
+                        borderRadius: "10px",
+                        color: "#fff",
+                        fontSize: "12px",
+                      }}
+                      labelStyle={{ color: "#fff" }}
+                    />
+                    <Line type="monotone" dataKey="vol" stroke="#60a5fa" dot={false} strokeWidth={2} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+
+              {!series && (
+                <div className="mt-3 rounded-md border border-border bg-background/30 p-3 text-xs text-muted-foreground">
+                  No time-series detected in response. If you paste your volatility endpoint JSON,
+                  I’ll map it perfectly.
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </MainLayout>
+  );
+}

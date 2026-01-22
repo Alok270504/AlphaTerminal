@@ -1,0 +1,10 @@
+"use client";
+import { MainLayout } from "@/components/layout/MainLayout";
+export default function Page(){
+  return (
+    <MainLayout>
+      <h1 className="text-3xl font-bold mb-2">market-making</h1>
+      <p className="text-muted-foreground">UI restored. Next: wire to your backend endpoint.</p>
+    </MainLayout>
+  );
+}

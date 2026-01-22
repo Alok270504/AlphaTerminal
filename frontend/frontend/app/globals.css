@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+/* Tailwind v4: define theme tokens in CSS so utilities like bg-background, text-foreground, border-border exist */
+@theme {
+  --color-background: hsl(222 47% 11%);
+  --color-foreground: hsl(210 40% 98%);
+
+  --color-card: hsl(222 47% 13%);
+  --color-card-foreground: hsl(210 40% 98%);
+
+  --color-popover: hsl(222 47% 13%);
+  --color-popover-foreground: hsl(210 40% 98%);
+
+  --color-primary: hsl(187 100% 50%);
+  --color-primary-foreground: hsl(222 47% 11%);
+
+  --color-secondary: hsl(222 47% 15%);
+  --color-secondary-foreground: hsl(210 40% 98%);
+
+  --color-muted: hsl(222 47% 15%);
+  --color-muted-foreground: hsl(215 20% 55%);
+
+  --color-accent: hsl(262 83% 58%);
+  --color-accent-foreground: hsl(210 40% 98%);
+
+  --color-destructive: hsl(0 84% 60%);
+  --color-destructive-foreground: hsl(210 40% 98%);
+
+  --color-success: hsl(142 71% 45%);
+  --color-success-foreground: hsl(210 40% 98%);
+
+  --color-warning: hsl(38 92% 50%);
+  --color-warning-foreground: hsl(222 47% 11%);
+
+  --color-border: hsl(222 30% 18%);
+  --color-input: hsl(222 30% 18%);
+  --color-ring: hsl(187 100% 50%);
+}
+
+:root { color-scheme: dark; }
+
+* { border-color: var(--color-border); }
+html, body { height: 100%; }
+body { background: var(--color-background); color: var(--color-foreground); }
+
+.glass-card {
+  border-radius: 1rem;
+  border: 1px solid var(--color-border);
+  background: color-mix(in oklab, var(--color-card) 50%, transparent);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+}
+
+.glass-card-hover {
+  border-radius: 1rem;
+  border: 1px solid var(--color-border);
+  background: color-mix(in oklab, var(--color-card) 50%, transparent);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+  transition: all 200ms ease;
+}
+.glass-card-hover:hover {
+  background: color-mix(in oklab, var(--color-card) 70%, transparent);
+  box-shadow: 0 30px 70px rgba(0,0,0,0.35);
+}
