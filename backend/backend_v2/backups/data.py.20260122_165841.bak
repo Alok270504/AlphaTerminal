@@ -1,0 +1,51 @@
+from __future__ import annotations
+import pandas as pd
+import yfinance as yf
+
+def _to_list(tickers) -> list[str]:
+    if isinstance(tickers, str):
+        return [tickers]
+    return [str(t).strip().upper() for t in tickers if str(t).strip()]
+
+def get_price_df(tickers, period="2y", interval="1d") -> pd.DataFrame:
+    """
+    Returns a DataFrame with columns = tickers and index = datetime,
+    using 'Adj Close' if available, otherwise 'Close'.
+    Robust to yfinance MultiIndex / single-index outputs.
+    """
+    tks = _to_list(tickers)
+    if not tks:
+        raise ValueError("No tickers provided")
+
+    raw = yf.download(
+        tickers=tks,
+        period=period,
+        interval=interval,
+        auto_adjust=False,
+        progress=False,
+        threads=True,
+        group_by="column",
+    )
+
+    if raw is None or raw.empty:
+        raise ValueError("No data returned from yfinance")
+
+    # MultiIndex columns for multiple tickers: (field, ticker)
+    if isinstance(raw.columns, pd.MultiIndex):
+        top = raw.columns.get_level_values(0)
+        field = "Adj Close" if "Adj Close" in set(top) else "Close"
+        df = raw[field].copy()
+    else:
+        # Single ticker: columns like Open/High/Low/Close/Adj Close/Volume
+        field = "Adj Close" if "Adj Close" in raw.columns else "Close"
+        df = raw[[field]].copy()
+        df.columns = [tks[0]]
+
+    # Clean
+    df = df.sort_index()
+    df = df.ffill().dropna(how="all")
+    # keep only requested tickers if present
+    df = df[[c for c in df.columns if c in tks]]
+    if df.empty:
+        raise ValueError("Price dataframe is empty after cleaning")
+    return df
